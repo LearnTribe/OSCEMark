@@ -25,6 +25,16 @@
 		public $id=0;
 		public $name="";
 		public $content="";
+		public $examId = 0;
+		public $feedbackExamId = 0;
+		public $feedbackFieldId = 0;
+	}
+	
+	class FeedbackResponse{
+		public $examId = 0;
+		public $feedbackExamId = 0;
+		public $feedbackFieldId = 0;
+		public $feedbackList = array();
 	}
 	
 	class Folder {
@@ -89,7 +99,6 @@
 	{
 		$res = new Response();
 		$res->response = "download";
-		//$jsonText = '{"response": "download"}';
 		header('Content-Type: application/json');
 		echo json_encode($res);
 		return;
@@ -186,13 +195,56 @@
 	}
 	else if($action==6){
 		$id = clean_param($_GET["id"], PARAM_RAW);
-		$alldata = $DB->get_records_sql("SELECT dc.id , d.name , dc.content FROM {".$json_title_array[6]."} dc left join {".$json_title_array[4]."} df on df.id = dc.fieldid left join {".$json_title_array[3]."} d on d.id = df.dataid WHERE d.name like (select concat('%',(select TRIM(REPLACE(REPLACE(d.name,'DOPS',''),'OSCE','')) AS name from {".$json_title_array[3]."} d where d.id = ?),'%')) and d.name like '%feedback%'", array($id, $id));
+		$alldata = $DB->get_records_sql("SELECT dc.recordid as id ,df.id as feedback_field_id, d.id as feedback_exam_id, d.name , dc.content FROM {".$json_title_array[6]."} dc left join {".$json_title_array[4]."} df on df.id = dc.fieldid left join {".$json_title_array[3]."} d on d.id = df.dataid WHERE d.name like (select concat('%',(select TRIM(REPLACE(REPLACE(d.name,'DOPS',''),'OSCE','')) AS name from {".$json_title_array[3]."} d where d.id = ?),'%')) and d.name like '%feedback%'", array($id, $id));
 		
+		$feedbackResponse = new FeedbackResponse();
+		$counterFeedback = 0;
 		foreach($alldata as $data){
 			$feedback = new Feedback();
 			$feedback->id = intval($data->id);
 			$feedback->name = $data->name;
 			$feedback->content = $data->content;
+			$feedback->examId = intval($id);
+			$feedback->feedbackExamId = intval($data->feedback_exam_id);
+			$feedback->feedbackFieldId = intval($data->feedback_field_id);
+			
+			$counterFeedback->feedbackList[] = $feedback;
+			
+			if ($counterFeedback == 0){
+				$feedbackResponse->examId = intval($id);
+				$feedbackResponse->feedbackFieldId = intval($data->feedback_field_id);
+				$feedbackResponse->feedbackExamId = intval($data->feedback_exam_id);
+				
+			}
+			$counterFeedback++;
+		}
+		
+		if (count($dataToSend) == 0){
+			$data = $DB->get_record_sql("select df.id as feedback_field_id, d.id as feedback_exam_id from mdl_data d inner join mdl_data_fields df on df.dataid = d.id where d.name like (select concat('%',(select TRIM(REPLACE(REPLACE(d.name,'DOPS',''),'OSCE','')) AS name from mdl_data d where d.id = ?), '%')) and d.name like '%feedback%' limit 1", array($id));
+			
+			$feedbackResponse->examId = intval($id);
+			$feedbackResponse->feedbackFieldId = intval($data->feedback_field_id);
+			$feedbackResponse->feedbackExamId = intval($data->feedback_exam_id);
+			
+						
+		}
+		
+		header('Content-Type: application/json');
+		echo json_encode($feedbackResponse);
+		return;
+	}
+	else if ($action==7){
+		$sqlFeedback = "SELECT dc.recordid as id ,df.id as feedback_field_id, d.id as feedback_exam_id, d.name feedback_name , c.name course_name , concat(c.name , ' [FEEDBACK]') as feedbackN , c.id as exam_id, dc.content FROM {".$json_title_array[6]."} dc inner join {".$json_title_array[4]."} df on df.id = dc.fieldid inner join {".$json_title_array[3]."} d on d.id = df.dataid inner join {".$json_title_array[3]."} c on concat(c.name , ' [FEEDBACK]') = d.name WHERE d.name like '%feedback%'";
+		$alldata = $DB->get_records_sql($sqlFeedback);
+		
+		foreach($alldata as $data){
+			$feedback = new Feedback();
+			$feedback->id = intval($data->id);
+			$feedback->name = $data->feedback_name;
+			$feedback->content = $data->content;
+			$feedback->examId = intval($data->exam_id);
+			$feedback->feedbackExamId = intval($data->feedback_exam_id);
+			$feedback->feedbackFieldId = intval($data->feedback_field_id);
 			
 			$dataToSend[] = $feedback;
 		}
