@@ -148,7 +148,7 @@
 	}
 	else if($action == 3){
 		$id = clean_param($_GET["id"], PARAM_RAW);
-		$alldata = $DB->get_records_sql("SELECT D.id , D.name , D.intro , D.addtemplate , cs.name as course_name , cs.id as course FROM {".$json_title_array[3]."} d inner join {".$json_title_array[5]."} cm on cm.instance = d.id inner join {".$json_title_array[1]."} cs on cs.id=cm.section where d.id = ?",array($id));
+		$alldata = $DB->get_records_sql("SELECT d.id , d.name , d.intro , d.addtemplate , cs.name as course_name , cs.id as course FROM {".$json_title_array[3]."} d inner join {".$json_title_array[5]."} cm on cm.instance = d.id inner join {".$json_title_array[1]."} cs on cs.id=cm.section where d.id = ?",array($id));
 		
 
 		foreach($alldata as $data){
