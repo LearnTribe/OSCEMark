@@ -195,7 +195,11 @@
 	}
 	else if($action==6){
 		$id = clean_param($_GET["id"], PARAM_RAW);
-		$alldata = $DB->get_records_sql("SELECT dc.recordid as id ,df.id as feedback_field_id, d.id as feedback_exam_id, d.name , dc.content FROM {".$json_title_array[6]."} dc left join {".$json_title_array[4]."} df on df.id = dc.fieldid left join {".$json_title_array[3]."} d on d.id = df.dataid WHERE d.name like (select concat('%',(select TRIM(REPLACE(REPLACE(d.name,'DOPS',''),'OSCE','')) AS name from {".$json_title_array[3]."} d where d.id = ?),'%')) and d.name like '%feedback%'", array($id, $id));
+		$alldata = $DB->get_records_sql("SELECT dc.recordid as id ,df.id as feedback_field_id, d.id as feedback_exam_id, d.name , dc.content FROM 
+		{".$json_title_array[3]."} d 
+		inner join {".$json_title_array[4]."} df on d.id = df.dataid 
+		inner join {".$json_title_array[6]."} dc on df.id = dc.fieldid 
+		WHERE d.name like (select concat('%',(select TRIM(REPLACE(REPLACE(d.name,'DOPS',''),'OSCE','')) AS name from {".$json_title_array[3]."} d where d.id = ?),'%')) and d.name like '%feedback%'", array($id));
 		
 		$feedbackResponse = new FeedbackResponse();
 		$counterFeedback = 0;
@@ -208,7 +212,7 @@
 			$feedback->feedbackExamId = intval($data->feedback_exam_id);
 			$feedback->feedbackFieldId = intval($data->feedback_field_id);
 			
-			$counterFeedback->feedbackList[] = $feedback;
+			$feedbackResponse->feedbackList[] = $feedback;
 			
 			if ($counterFeedback == 0){
 				$feedbackResponse->examId = intval($id);
@@ -220,7 +224,12 @@
 		}
 		
 		if (count($dataToSend) == 0){
-			$data = $DB->get_record_sql("select df.id as feedback_field_id, d.id as feedback_exam_id from mdl_data d inner join mdl_data_fields df on df.dataid = d.id where d.name like (select concat('%',(select TRIM(REPLACE(REPLACE(d.name,'DOPS',''),'OSCE','')) AS name from mdl_data d where d.id = ?), '%')) and d.name like '%feedback%' limit 1", array($id));
+			$data = $DB->get_record_sql("select df.id as feedback_field_id, d.id as feedback_exam_id 
+			from 
+			{".$json_title_array[3]."} d 
+			inner join {".$json_title_array[4]."} df on df.dataid = d.id 
+			where 
+			d.name like (select concat('%',(select TRIM(REPLACE(REPLACE(d.name,'DOPS',''),'OSCE','')) AS name from {".$json_title_array[3]."} d where d.id = ?), '%')) and d.name like '%feedback%' limit 1", array($id));
 			
 			$feedbackResponse->examId = intval($id);
 			$feedbackResponse->feedbackFieldId = intval($data->feedback_field_id);
