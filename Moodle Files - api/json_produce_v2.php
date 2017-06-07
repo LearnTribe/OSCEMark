@@ -114,12 +114,13 @@
 	'data' , 					//3
 	'data_fields' , 			//4
 	'course_modules', 			//5
-	'data_content');			//6
+	'data_content',				//6
+	'modules');					//7
 
 	
 	
 	if ($action==1){
-		$alldata = $DB->get_records_sql("SELECT distinct c.id, c.fullname as name FROM {".$json_title_array[0]."} c left join {".$json_title_array[2]."} cc on cc.id=c.category where cc.name = ? and cc.visible = ? ",array('OSCE_Exams', 1));
+		$alldata = $DB->get_records_sql("SELECT distinct c.id, c.fullname as name FROM {".$json_title_array[2]."} cc inner join {".$json_title_array[0]."} c on cc.id=c.category where cc.name = ? and cc.visible = ? ",array('OSCE_Exams', 1));
 		
 		foreach($alldata as $data){
 			$postObj = new Folder();
@@ -131,9 +132,18 @@
 	}
 	else if($action==2){
 		$id = clean_param($_GET["id"], PARAM_RAW);
-		$query = "SELECT d.id as id,d.name as name, cs.id as course, cs.name as course_name FROM {".$json_title_array[1]."} cs join {".$json_title_array[5]."} cm on cs.id = cm.section join {".$json_title_array[3]."} d on d.id = cm.instance where cs.visible = 1  and cm.visible =1 and cs.section<>0 and d.name not like '%feedback%'";
+		//$query = "SELECT d.id as id,d.name as name, cs.id as course, cs.name as course_name FROM {".$json_title_array[1]."} cs join {".$json_title_array[5]."} cm on cs.id = cm.section join {".$json_title_array[3]."} d on d.id = cm.instance where cs.visible = 1  and cm.visible =1 and cs.section<>0 and d.name not like '%feedback%'";
+		$query = "SELECT d.id as id ,d.name as name , cs.id as course , cs.name as course_name 
+		FROM {".$json_title_array[1]."} cs 
+		inner join {".$json_title_array[5]."} cm on cm.section = cs.id 
+		inner join {".$json_title_array[3]."} d on d.id = cm.instance 
+		inner join {".$json_title_array[7]."} m on m.id = cm.module 
+		WHERE m.name = 'data' and d.name not like '%feedback%' ";
+		
 		if ($id > 0)
-			$query .=" and cs.id = ?";
+			$query .=" and cs.id = ? ";
+		$query .= "order by cs.id asc";
+		
 		$alldata = $DB->get_records_sql($query, array($id));
 		
 		foreach($alldata as $data){
@@ -183,7 +193,7 @@
 	}
 	else if($action==5){
 		$id = clean_param($_GET["id"], PARAM_RAW);
-		$alldata = $DB->get_records_sql("select cs.id as id, cs.name as name from mdl_course_sections cs left join mdl_course c on c.id = cs.course where cs.section <>0 and cs.visible = 1 and cs.name<>'' and c.id = ?", array($id));
+		$alldata = $DB->get_records_sql("select cs.id as id, cs.name as name from mdl_course_sections cs left join mdl_course c on c.id = cs.course where cs.section <>0 and cs.visible = 1 and cs.name<>'' and c.id = ? and cs.name not like '%feedback%'", array($id));
 		
 		foreach($alldata as $data){
 			$folder = new Folder();
@@ -243,7 +253,44 @@
 		return;
 	}
 	else if ($action==7){
-		$sqlFeedback = "SELECT dc.recordid as id ,df.id as feedback_field_id, d.id as feedback_exam_id, d.name feedback_name , c.name course_name , concat(c.name , ' [FEEDBACK]') as feedbackN , c.id as exam_id, dc.content FROM {".$json_title_array[6]."} dc inner join {".$json_title_array[4]."} df on df.id = dc.fieldid inner join {".$json_title_array[3]."} d on d.id = df.dataid inner join {".$json_title_array[3]."} c on concat(c.name , ' [FEEDBACK]') = d.name WHERE d.name like '%feedback%'";
+		/*$sqlFeedback = "SELECT 
+		dc.recordid as id 
+		,df.id as feedback_field_id
+		, d.id as feedback_exam_id
+		, d.name feedback_name 
+		, c.name course_name 
+		, concat(c.name , ' [FEEDBACK]') as feedbackN 
+		, c.id as exam_id
+		, dc.content 
+		FROM 
+		{".$json_title_array[6]."} dc 
+		inner join {".$json_title_array[4]."} df on df.id = dc.fieldid 
+		inner join {".$json_title_array[3]."} d on d.id = df.dataid 
+		inner join {".$json_title_array[3]."} c on concat(c.name , ' [FEEDBACK]') = d.name 
+		WHERE d.name like '%feedback%'";
+		*/
+		$sqlFeedback = "SELECT 
+		dc.recordid as id 
+		,df.id as feedback_field_id
+		, d.id as feedback_exam_id
+		, d.name feedback_name 
+		, dc.content 
+		, trim(REPLACE(lower( c.name) , '[feedback]', '')) as feedbackN 
+		, c.id as exam_id
+		FROM 
+		{".$json_title_array[6]."} dc 
+		inner join {".$json_title_array[4]."} df on df.id = dc.fieldid 
+		inner join {".$json_title_array[3]."} d on d.id = df.dataid 
+		inner join {".$json_title_array[3]."} c on trim(REPLACE(lower( d.name) , '[feedback]', '')) = trim(lower(c.name))
+		where d.id in (
+			SELECT d.id 
+			FROM {".$json_title_array[1]."} cs 
+			inner join {".$json_title_array[5]."} cm on cm.section = cs.id 
+			inner join {".$json_title_array[3]."} d on d.id = cm.instance 
+			inner join {".$json_title_array[7]."} m on m.id = cm.module 
+			WHERE m.name = 'data' and d.name like '%feedback%'
+		)";
+			
 		$alldata = $DB->get_records_sql($sqlFeedback);
 		
 		foreach($alldata as $data){
